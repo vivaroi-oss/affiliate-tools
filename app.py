@@ -10,7 +10,14 @@ from PIL import Image, ImageEnhance
 
 # Настройка страницы
 st.set_page_config(page_title="Affiliate Hub", page_icon="🎯", layout="wide")
-
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 # ================= ПАРОЛЬ =================
 PASSWORD = "admin" # <-- Впиши свой пароль сюда
 
