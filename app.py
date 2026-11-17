@@ -27,8 +27,28 @@ def uniqueize_image(image_bytes: bytes) -> bytes:
     return out.getvalue()
 
 def get_random_selfie() -> bytes:
-    response = requests.get("https://thispersondoesnotexist.com", headers={'User-Agent': 'Mozilla/5.0'})
-    return response.content
+    try:
+        # Используем API, которое генерирует случайные лица и возвращает прямую ссылку на фото
+        api_url = "https://fakeface.rest/face/json"
+        response = requests.get(api_url)
+        response.raise_for_status() # Проверка на ошибки HTTP
+
+        data = response.json()
+        image_url = data.get("image_url")
+
+        if image_url:
+            # Скачиваем саму картинку по полученной ссылке
+            img_response = requests.get(image_url)
+            img_response.raise_for_status()
+            return img_response.content
+        else:
+            raise Exception("API не вернуло ссылку на картинку")
+
+    except Exception as e:
+        # В случае любой ошибки (например, если API лежит), возвращаем резервный вариант
+        # или вызываем ошибку, которую Streamlit сможет красиво показать
+        st.error(f"Не удалось получить селфи. Ошибка: {e}")
+        return b"" # Возвращаем пустые байты
 
 def download_video(url: str) -> str:
     filename = f"vid_{uuid.uuid4().hex[:8]}.mp4"
@@ -102,17 +122,14 @@ elif menu == "🔐 2FA Генератор":
 
 elif menu == "🤳 Селфи-генератор":
     st.header("Генератор уникальных селфи для ЗРД")
-    st.write("Каждое нажатие генерирует лицо несуществующего человека.")
-    
     if st.button("Сгенерировать селфи", type="primary"):
         with st.spinner("Нейросеть рисует лицо..."):
             photo_bytes = get_random_selfie()
-            st.image(photo_bytes, caption="Уникальное селфи", width=400)
-            st.download_button(
-                label="💾 Скачать селфи",
-                data=photo_bytes,
-                file_name=f"selfie_{uuid.uuid4().hex[:6]}.jpg",
-                mime="image/jpeg"
+            if photo_bytes: # Проверяем, что фото успешно скачалось
+                st.image(photo_bytes, caption="Уникальное селфи", width=400)
+                st.download_button("💾 Скачать селфи", data=photo_bytes, file_name=f"selfie_{uuid.uuid4().hex[:6]}.jpg", mime="image/jpeg")
+            else:
+                st.warning("Попробуйте нажать кнопку еще раз.")
             )
 
 elif menu == "📥 Скачать видео":
