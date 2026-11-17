@@ -11,12 +11,17 @@ from PIL import Image, ImageEnhance
 # Настройка страницы
 st.set_page_config(page_title="Affiliate Hub", page_icon="🎯", layout="wide")
 hide_streamlit_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            </style>
-            """
+<style>
+/* Скрываем верхнее меню (Fork, GitHub, 3 точки) */
+header {visibility: hidden !important;}
+.stApp > header {display: none !important;}
+[data-testid="stToolbar"] {visibility: hidden !important;}
+
+/* Скрываем нижний колонтитул (Hosted with Streamlit и Created by) */
+footer {visibility: hidden !important;}
+.stApp > footer {display: none !important;}
+</style>
+"""
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 # ================= ПАРОЛЬ =================
 PASSWORD = "admin" # <-- Впиши свой пароль сюда
