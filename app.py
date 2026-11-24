@@ -71,21 +71,24 @@ def check_auth():
         st.session_state["authenticated_user"] = user_from_cookie
         return True
 
-    # 3. Форма входа
-    st.title("🔒 Вход в систему")
-    col1, _ = st.columns([1, 2])
-    with col1:
-        login = st.text_input("Логин (например, @fitspin):").strip()
-        pwd = st.text_input("Пароль:", type="password")
-        if st.button("Войти", type="primary"):
-            if login in USERS and USERS[login] == pwd:
-                token = make_token(login, pwd)
-                expires = datetime.datetime.now() + datetime.timedelta(days=35)
-                cookie_manager.set(COOKIE_NAME, f"{login}:{token}", expires_at=expires)
-                st.session_state["authenticated_user"] = login
-                st.rerun()
-            else:
-                st.error("❌ Неверный логин или пароль")
+    # 3. Форма входа внутри контейнера, который очищается без st.rerun()
+    login_placeholder = st.empty()
+    with login_placeholder.container():
+        st.title("🔒 Вход в систему")
+        col1, _ = st.columns([1, 2])
+        with col1:
+            login = st.text_input("Логин (например, @fitspin):").strip()
+            pwd = st.text_input("Пароль:", type="password")
+            if st.button("Войти", type="primary"):
+                if login in USERS and USERS[login] == pwd:
+                    token = make_token(login, pwd)
+                    expires = datetime.datetime.now() + datetime.timedelta(days=35)
+                    cookie_manager.set(COOKIE_NAME, f"{login}:{token}", expires_at=expires)
+                    st.session_state["authenticated_user"] = login
+                    login_placeholder.empty()
+                    return True
+                else:
+                    st.error("❌ Неверный логин или пароль")
     return False
 
 
@@ -165,7 +168,8 @@ if check_auth():
     if st.sidebar.button("🚪 Выйти"):
         cookie_manager.delete(COOKIE_NAME)
         st.session_state["authenticated_user"] = None
-        st.rerun()
+        st.info("Вы вышли из системы. Обновите страницу (F5).")
+        st.stop()
 
     menu = st.sidebar.radio(
         "Выберите инструмент:",
