@@ -3,3 +3,4 @@ Pillow
 pyotp
 yt-dlp
 requests
+extra-streamlit-components
