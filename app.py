@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import hashlib
 import io
 import uuid
@@ -53,6 +54,50 @@ def verify_token(auth_param: str):
         return username
     return None
 
+def play_notification_sound():
+    sound_js = """
+    <script>
+    (function() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const playTone = (freq, startTime, duration) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(0.15, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            };
+            const now = ctx.currentTime;
+            playTone(587.33, now, 0.15);        // D5
+            playTone(880.00, now + 0.12, 0.25); // A5
+        } catch (e) {}
+    })();
+    </script>
+    """
+    components.html(sound_js, height=0)
+
+@st.dialog("📌 Обязательно сохраните доступ!")
+def show_bookmark_dialog():
+    play_notification_sound()
+    st.markdown(
+        """
+        Вы успешно вошли в **Affiliate Hub**.
+
+        **Обязательно добавьте эту страницу в закладки прямо сейчас**, чтобы сохранить доступ и больше не вводить логин и пароль:
+        * **Windows:** нажмите `Ctrl + D`
+        * **Mac:** нажмите `Cmd + D`
+        * **Телефон:** нажмите «Поделиться» / «Меню» → «Добавить в закладки»
+        """
+    )
+    if st.button("Понятно, добавил(а) в закладки", type="primary", use_container_width=True):
+        st.session_state["show_bookmark_popup"] = False
+        st.rerun()
+
 def check_auth():
     # 1. Проверяем токен в адресной строке (переживает F5 и закладки)
     auth_param = st.query_params.get("auth")
@@ -69,13 +114,14 @@ def check_auth():
     st.title("🔒 Вход в систему")
     col1, _ = st.columns([1, 2])
     with col1:
-        login = st.text_input("Логин (например, @игорь228):").strip()
+        login = st.text_input("Логин (например, @fitspin):").strip()
         pwd = st.text_input("Пароль:", type="password")
         if st.button("Войти", type="primary"):
             if login in USERS and USERS[login] == pwd:
                 token = make_token(login, pwd)
                 st.query_params["auth"] = f"{login}:{token}"
                 st.session_state["authenticated_user"] = login
+                st.session_state["show_bookmark_popup"] = True
                 st.rerun()
             else:
                 st.error("❌ Неверный логин или пароль")
@@ -85,6 +131,10 @@ def check_auth():
 # Если авторизация пройдена, показываем панель
 if check_auth():
     current_user = st.session_state["authenticated_user"]
+
+    # Показываем всплывающее окно со звуком сразу после логина
+    if st.session_state.get("show_bookmark_popup"):
+        show_bookmark_dialog()
 
     # ================= ЛОГИКА ФУНКЦИЙ =================
     HOMOGLYPHS = {
@@ -157,6 +207,7 @@ if check_auth():
     if st.sidebar.button("🚪 Выйти"):
         st.query_params.clear()
         st.session_state["authenticated_user"] = None
+        st.session_state["show_bookmark_popup"] = False
         st.rerun()
 
     menu = st.sidebar.radio(
