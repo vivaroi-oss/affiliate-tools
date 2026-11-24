@@ -1,6 +1,4 @@
 import streamlit as st
-import extra_streamlit_components as stx
-import datetime
 import hashlib
 import io
 import uuid
@@ -41,54 +39,46 @@ USERS = {
     "@jesusfromsion": "Jf2$tV6m",
 }
 
-# Секретная соль для генерации токена в cookies
-COOKIE_SECRET = "aff_hub_secret_key_2026"
-COOKIE_NAME = "aff_hub_auth"
-
-cookie_manager = stx.CookieManager(key="auth_cookie_manager")
+AUTH_SECRET = "aff_hub_secret_key_2026"
 
 def make_token(username: str, password: str) -> str:
-    raw = f"{username}:{password}:{COOKIE_SECRET}"
-    return hashlib.sha256(raw.encode()).hexdigest()
+    raw = f"{username}:{password}:{AUTH_SECRET}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:24]
 
-def verify_cookie(cookie_val: str):
-    if not cookie_val or ":" not in cookie_val:
+def verify_token(auth_param: str):
+    if not auth_param or ":" not in auth_param:
         return None
-    username, token = cookie_val.split(":", 1)
+    username, token = auth_param.split(":", 1)
     if username in USERS and make_token(username, USERS[username]) == token:
         return username
     return None
 
 def check_auth():
-    # 1. Проверяем текущую сессию
+    # 1. Проверяем токен в адресной строке (переживает F5 и закладки)
+    auth_param = st.query_params.get("auth")
+    user_from_url = verify_token(auth_param)
+    if user_from_url:
+        st.session_state["authenticated_user"] = user_from_url
+        return True
+
+    # 2. Проверяем текущую сессию
     if st.session_state.get("authenticated_user"):
         return True
 
-    # 2. Проверяем сохраненные cookies (на 35 дней)
-    saved_cookie = cookie_manager.get(COOKIE_NAME)
-    user_from_cookie = verify_cookie(saved_cookie)
-    if user_from_cookie:
-        st.session_state["authenticated_user"] = user_from_cookie
-        return True
-
-    # 3. Форма входа внутри контейнера, который очищается без st.rerun()
-    login_placeholder = st.empty()
-    with login_placeholder.container():
-        st.title("🔒 Вход в систему")
-        col1, _ = st.columns([1, 2])
-        with col1:
-            login = st.text_input("Логин (например, @fitspin):").strip()
-            pwd = st.text_input("Пароль:", type="password")
-            if st.button("Войти", type="primary"):
-                if login in USERS and USERS[login] == pwd:
-                    token = make_token(login, pwd)
-                    expires = datetime.datetime.now() + datetime.timedelta(days=35)
-                    cookie_manager.set(COOKIE_NAME, f"{login}:{token}", expires_at=expires)
-                    st.session_state["authenticated_user"] = login
-                    login_placeholder.empty()
-                    return True
-                else:
-                    st.error("❌ Неверный логин или пароль")
+    # 3. Форма входа
+    st.title("🔒 Вход в систему")
+    col1, _ = st.columns([1, 2])
+    with col1:
+        login = st.text_input("Логин (например, @fitspin):").strip()
+        pwd = st.text_input("Пароль:", type="password")
+        if st.button("Войти", type="primary"):
+            if login in USERS and USERS[login] == pwd:
+                token = make_token(login, pwd)
+                st.query_params["auth"] = f"{login}:{token}"
+                st.session_state["authenticated_user"] = login
+                st.rerun()
+            else:
+                st.error("❌ Неверный логин или пароль")
     return False
 
 
@@ -113,12 +103,10 @@ if check_auth():
         result = []
         for char in text:
             new_char = char
-            # Замена на визуально идентичную букву (гомоглиф)
             if use_homoglyphs and char in HOMOGLYPHS and random.random() < intensity:
                 new_char = HOMOGLYPHS[char]
             result.append(new_char)
 
-            # Точечная вставка невидимого символа внутри слов
             if use_invisible and char.isalpha() and random.random() < (intensity * 0.5):
                 result.append(random.choice(INVISIBLE_CHARS))
 
@@ -164,12 +152,12 @@ if check_auth():
     # ================= ИНТЕРФЕЙС (UI) =================
     st.sidebar.title("🎯 Affiliate Hub")
     st.sidebar.markdown(f"👤 Аккаунт: **{current_user}**")
+    st.sidebar.caption("💡 Добавьте эту страницу в закладки, чтобы не вводить пароль снова.")
 
     if st.sidebar.button("🚪 Выйти"):
-        cookie_manager.delete(COOKIE_NAME)
+        st.query_params.clear()
         st.session_state["authenticated_user"] = None
-        st.info("Вы вышли из системы. Обновите страницу (F5).")
-        st.stop()
+        st.rerun()
 
     menu = st.sidebar.radio(
         "Выберите инструмент:",
