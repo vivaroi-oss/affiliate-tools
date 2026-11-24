@@ -114,7 +114,7 @@ def check_auth():
     st.title("🔒 Вход в систему")
     col1, _ = st.columns([1, 2])
     with col1:
-        login = st.text_input("Логин (например, @fitspin):").strip()
+        login = st.text_input("Логин (например, @заливатор3000роя):").strip()
         pwd = st.text_input("Пароль:", type="password")
         if st.button("Войти", type="primary"):
             if login in USERS and USERS[login] == pwd:
